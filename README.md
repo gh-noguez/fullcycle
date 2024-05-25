@@ -18,3 +18,8 @@ O URL deve ser algo como git@github.com:organizacao/nome-do-repositorio.git. Se 
 ```bash
 git remote set-url origin git@github.com:organizacao/nome-do-repositorio.git
 ```
+
+Comandu usado
+```bash
+git remote set-url origin  git@github.com:gh-noguez/code-review-fullcycle.git
+```
