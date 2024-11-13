@@ -1,0 +1,218 @@
+Listar os containers em execução:
+
+```bash
+docker ps
+```
+
+Listar todos os containers
+
+```bash
+docker ps -a
+```
+
+Executa/baixa a imagem do Ubuntu = run: executa | -it: iterativo (prende o terminal) e tty  | ubutu: nome da imagem | latest: tag | bash: comando a ser executado
+
+```bash
+docker run -it ubuntu:latest bash
+```
+
+Executa o container e ao sair do container ja é removido
+
+```bash
+docker run -it --rm ubuntu:latest bash
+```
+
+Inicia o Container
+
+```bash
+docker start <nome_do_container>
+```
+
+Para o Container
+
+```bash
+docker stop<nome_do_container>
+```
+
+Executando/baixando a imagem do nginx
+
+```bash
+docker run nginx
+```
+
+Executando/baixando a imagem do nginx e publicando uma porta. 
+**`-p 8080:80`:** Publica a porta 80 do container na porta 8080 do host. Isso significa que qualquer solicitação feita à porta 8080 do host será enviada à porta 80 do container. 
+-d=Faz o container rodar em segundo plano (detached mode), permitindo que você continue usando o terminal enquanto o container está em execução.
+- - name nginx_ngz = nomeando container
+
+```bash
+docker run -d -p 8080:80 --name nginx_ngz nginx
+```
+
+Removendo container | rm=remover | -f força caso o container esteja em execução
+
+```bash
+docker container rm -f <nome_da_imagem>
+```
+
+Executar o comando “ls” dentro do container
+
+```bash
+docker exec nginx ls
+```
+
+Acessando o bash do container
+
+```bash
+docker exec -it nginx bash
+```
+
+- `-mount`: Monta um volume, que permite compartilhar arquivos entre o host e o container.
+- `type=bind`: Especifica o tipo de montagem como "bind", que monta um diretório do host no container.
+- `source="$(pwd)"/html`: Indica o diretório do host a ser montado. O `$(pwd)` utiliza a variável de ambiente para obter o caminho do diretório atual.
+- `target=/usr/share/nginx/html`: Especifica o diretório dentro do container onde o diretório do host será montado. Este é o diretório padrão onde o nginx busca os arquivos a serem servidos.
+
+```bash
+docker run —d --name nginx —p 8080:80 --mount type—bind,source="$(pwd)"/html,target=/usr/share/nginx/html
+```
+
+- `type=volume`: Especifica o tipo de montagem como "volume", que cria um volume gerenciado pelo Docker.
+- `source=meuvolume`: Define o nome do volume como "meuvolume". Se o volume já existir, ele será reutilizado; caso contrário, um novo volume será criado.
+- `target=/app`: Define o diretório dentro do container onde o volume será montado. Neste caso, `/app`.
+
+```bash
+docker run --name nginx -d --mount type=volume,source=meuvolume,target=/app nginx
+```
+
+Desta forma estou compartilhando o “Volume” com outro container
+
+```bash
+docker run --name nginx2 -d --mount type=volume,source=meuvolume,target=/app nginx
+```
+
+Aqui estou usando o “-v” e compartinlhando o volume também
+
+```bash
+docker run --name nginx3 -d -v meuvolume:/app nginx
+```
+
+`docker volume prune` remove todos os volumes Docker **não utilizados** (ou "dangling volumes") do seu sistema. Volumes não utilizados são aqueles que não estão mais associados a nenhum container em execução.
+
+```bash
+docker volume prune
+```
+
+Efetua o download da imagem
+
+```bash
+docker pull <nome_da_imagem>
+```
+
+Lista as imagen
+
+```bash
+docker images
+```
+
+Lista todos os containers (ativos/inativos) trazendo somente os IDs
+
+```bash
+docker ps -a -q
+```
+
+Remove todos os container de acordo com os IDs buscados através do comando anterior
+
+```bash
+docker rm $(docker ps -a -q) -f
+```
+
+Lista as redes
+
+```bash
+docker network ls
+```
+
+Inspeciona a rede bridge
+
+```bash
+docker network inspect bridge
+```
+
+Exemplo de como usar o comando attach da aula de redes:
+Primeiramente, vou executada duas imagens ubuntu com o modo detached, onde foram executadas e estão rodando.
+
+```bash
+docker run -d -it --name ubuntu1
+```
+
+```bash
+docker run -d -it --name ubuntu2
+```
+
+Após isto, foi realizado o acesso com o comando abaixo
+
+```bash
+docker attach ubuntu1
+```
+
+Após ter acessado o container ele buscou a rede com o comando:
+
+```bash
+ip addr show
+```
+
+Feito isto, ele deu um ping de um ubuntu para o outro (com os ips adquiridos com o comando [inspect](https://www.notion.so/Comandos-8ebe3a281c2b4037b8a5c13fcae3500a?pvs=21)
+
+```bash
+ping 172.17.0.3
+```
+
+Após isto ele fez o teste de ping pelo nome “ubuntu2” e não resolveu o nome, então foi criada uma rede:
+
+```bash
+docker network create --driver bridge minharede
+```
+
+Agora ele criou os ubuntus novanente:
+
+```bash
+docker run -dit --name ubuntu1 --network minharede bash
+```
+
+```bash
+docker run -dit --name ubuntu2 --network minharede bash
+```
+
+Agora foi acessado o container com o comando exec ao invés do attach:
+
+```bash
+docker exec -it ubuntu1 bash
+```
+
+Com isto, foi criada e definida uma rede para estes containers, assim é possível pingar através do nome, com um terceiro ubuntu, sem definir a mesma rede, não pinga pelo nome e nem por IP, pois está em uma outra rede, a bridge padrão.
+
+Conectando um container à uma rede:
+
+Agora foi possível pingar os outros containers.
+
+```bash
+docker nextwork connect minharede ubuntu3
+```
+
+# Docker compose
+
+```bash
+docker-compose up
+```
+
+```bash
+docker-compose ps
+```
+
+```bash
+docker-compose up -d
+```
+
+```bash
+docker-compose up -d --build
+```
