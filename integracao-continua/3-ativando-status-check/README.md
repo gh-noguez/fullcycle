@@ -31,6 +31,35 @@ git commit -m "ci: alterando trigger para o workflow develop"
 git push origin develop 
 ```
 
+- Agora, vamos para o Github para criar o pull request:
+![alt text](image-3.png)
+
+- Adionada a descrição com o template configurado para o pull request.
+
+![alt text](image-4.png)
+
+- Então será realizado o check antes de permitir o merge pull request:
+![alt text](image-5.png)
+
+- Agora que foi realizado o check e foi validado, podemos criar o merge pull request:
+![alt text](image-6.png)
+
+![alt text](image-7.png)
+
+![alt text](image-8.png)
+
+- Comandos e próximos passos:
+
+```bash
+git checkout develop
+```
+```bash
+git pull origin develop
+```
+```bash
+git branch -d feature/ci
+```
+
 Ps.: Para ocorrer a rejeição do push, alterei a configuração do repositório develop ativando `Do not allow bypassing the above settings`:
 
 ![alt text](image-2.png)
