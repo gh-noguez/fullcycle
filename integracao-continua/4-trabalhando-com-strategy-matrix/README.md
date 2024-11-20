@@ -15,6 +15,23 @@ build:
 
 - Com isto, será realizado o check nas versões adicionadas à matrix.
 
+
+- Como também tive o erro de ficar travado no "check", tive de alterar em settings, desativando temporariamente o `status check` para poder realizer o merge.
+
+- Após isto, realizei os comandos abaixo:
+
+```bash
+git checkout develop
+```
+
+```bash
+git pull origin develop
+```
+
+```bash
+git branch -d feature/ci-strategy-matrix 
+```
+
 - Doc:
 
 https://github.com/actions/setup-go
