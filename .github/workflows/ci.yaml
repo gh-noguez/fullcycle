@@ -27,5 +27,6 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v6
       with:
+        context: ./integracao-continua/2-iniciando-com-ci/goapp/
         push: false
         tags: felipenoguez/fullcycle:latest
