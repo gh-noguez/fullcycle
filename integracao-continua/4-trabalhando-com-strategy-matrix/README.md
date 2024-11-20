@@ -14,3 +14,7 @@ build:
 ```
 
 - Com isto, será realizado o check nas versões adicionadas à matrix.
+
+- Doc:
+
+https://github.com/actions/setup-go
