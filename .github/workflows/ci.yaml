@@ -6,17 +6,20 @@ on:
 jobs:  
   check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go: [ '1.13', '1.15' ]
+    # strategy:
+    #   matrix:
+    #     go: [ '1.13', '1.15' ]
     name: Go ${{ matrix.go }} sample
     steps:
     - uses: actions/checkout@v2
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go }}
+        go-version: 1.19
+        # go-version: ${{ matrix.go }}
     - name: Run tests
+      run: go test ./integracao-continua/2-iniciando-com-ci/goapp/
+    - name: Run app
       run: go run ./integracao-continua/2-iniciando-com-ci/goapp/math.go
     
     - name: Set up QEMU
@@ -25,6 +28,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
     
     - name: Build and push
+      id: docker_build
       uses: docker/build-push-action@v6
       with:
         context: ./integracao-continua/2-iniciando-com-ci/goapp/
