@@ -216,3 +216,63 @@ docker-compose up -d
 ```bash
 docker-compose up -d --build
 ```
+
+Verificar o que será removido com `system prune` e/ou o que está ocupando espaço em disco:
+```bash
+docker system df
+```
+
+Listar todos os volumes e identificar quais estão sendo usados ou não:
+```bash
+docker volume ls
+```
+
+Remover volumes órfãos:
+```bash
+docker volume prune
+```
+
+Forçar a remoção sem confirmação (opcional): Caso queira executar diretamente sem a confirmação, use:
+```bash
+docker volume prune -f
+```
+
+Visualizar detalhes do Build Cache;
+```bash
+docker buildx du
+```
+
+Remover todos os caches de build que não estão sendo utilizados:
+```bash
+docker builder prune
+```
+
+Forçar a remoção sem confirmação
+```bash
+docker builder prune -f
+```
+
+Limpar tudo (incluindo builds mais recentes):
+```bash
+docker builder prune --all
+```
+
+Remover tudo, incluindo imagens que não estão sendo usadas:
+```bash
+docker system prune -a
+```
+
+Para garantir que os volumes sejam removidos, adicionar a flag `--volumes`:
+```bash
+docker system prune -a --volumes
+```
+
+
+```bash
+```
+
+```bash
+```
+
+```bash
+```
