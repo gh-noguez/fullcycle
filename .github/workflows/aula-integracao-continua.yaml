@@ -12,4 +12,4 @@ jobs:
       with:
         go-version: 1.19
     - name: Run tests
-      run: go test ./integracao-continua/7-sonarqube/7.6-preparando-ambiente-para-sonarcloud/goapp/coverage.out
+      run: cd ./integracao-continua/7-sonarqube/7.6-preparando-ambiente-para-sonarcloud/goapp && go test -coverprofile=coverage.out
