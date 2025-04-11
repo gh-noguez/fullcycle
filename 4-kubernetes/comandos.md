@@ -71,6 +71,11 @@ kubectl delete pod goserver-2n5d2
 kubectl get replicaset
 ```
 
+- Vendo a descrição do POD:
+```bash
+kubectl describe pod goserver-8p7vv
+```
+
 ### Kind:
 
 - Verificar versão do Kind:
