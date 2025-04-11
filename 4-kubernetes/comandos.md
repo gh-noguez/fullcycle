@@ -36,16 +36,31 @@ kubectl config use-context <nome-do-cluster>
 kubectl config get-clusters
 ```
 
+- Aplicando/executando yaml:
 ```bash
-
+kubectl apply -f 4.2-primeiros-passos-na-pratica/4.2.2-trabalhando-com-pods/pod.yaml
 ```
 
+- Comandos para vizualizar pods do cluster (qualquer um do comando à seguir):
+```bash
+kubectl get pods
+kubectl get pod
+kubectl get po
 ```bash
 
+- Comandos para vizualizar todos os pods do cluster
+```bash
+kubectl get pod -A
 ```
 
+- Workaround para acessar um pod sem ter configurado nenhum tipo de acesso.
 ```bash
+kubectl port-forward pod/goserver 8001:80
+```
 
+- Removendo POD:
+```bash
+kubectl delete pod goserver
 ```
 
 ### Kind:
