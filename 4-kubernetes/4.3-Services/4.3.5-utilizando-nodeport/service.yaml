@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: goserver-service
+spec:
+  selector:
+    app: goserver
+  type: NodePort
+  # O tipo NodePort é usado para expor o serviço em uma porta específica em cada nó do cluster.
+  # Isso permite que você acesse o serviço usando o IP de qualquer nó do cluster e a porta especificada.
+  # O NodePort é um tipo de serviço que expõe o serviço em uma porta específica em cada nó do cluster.
+  # Isso permite que você acesse o serviço usando o IP de qualquer nó do cluster e a porta especificada.
+  # Por exemplo, se você tiver um nó com o IP
+  ports:
+  - name: goserver-port
+    port: 80
+    targetPort: 1078
+    protocol: TCP
+    nodePort: 30001
+  # nodePort é opcional, se não for especificado, o Kubernetes escolherá uma porta aleatória entre 30.000 e 32.767.
+  # Se você quiser que o NodePort seja acessível de fora do cluster, você deve especificar o tipo NodePort.
+  # O NodePort é um tipo de serviço que expõe o serviço em uma porta específica em cada nó do cluster.
+  # Isso permite que você acesse o serviço usando o IP de qualquer nó do cluster e a porta especificada.
+  # Por exemplo, se você tiver um nó com o IP
