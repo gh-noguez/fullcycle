@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: goserver-service
+spec:
+  selector:
+    app: goserver
+  type: LoadBalancer
+  # O tipo LoadBalancer é usado para expor o serviço através de um balanceador de
+  # carga externo, que pode ser acessado através de um IP externo ou DNS.
+  # Isso é útil para serviços que precisam ser acessados de fora do cluster Kubernetes.
+  ports:
+  - name: goserver-port
+    port: 80
+    targetPort: 1078
+    protocol: TCP
