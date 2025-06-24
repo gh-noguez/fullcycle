@@ -69,11 +69,37 @@ kubectl delete pod goserver-2n5d2
 - Listar replicaset
 ```bash
 kubectl get replicaset
+kubectl get replicasets
 ```
 
-- Vendo a descrição do POD:
+- VExibe informações detalhadas do POD:
 ```bash
 kubectl describe pod goserver-8p7vv
+```
+
+- Listar deployments
+```bash
+kubectl get deployments
+```
+
+- Exibe o histórico de revisões de uma implantação Kubernetes.
+```bash
+kubectl rollout history deployment goserver
+```
+
+- Reverte uma implantação do Kubernetes para uma revisão anterior, desfazendo as alterações feitas na implantação
+```bash
+kubectl rollout undo deployment goserver
+```
+
+- Reverte a implantação chamada "goserver" para a revisão de número 2:
+```bash
+kubectl rollout undo deployment goserver --to-revision=2
+```
+
+- Exibe informações detalhadas do deployment:
+```bash
+kubectl describe deployment goserver
 ```
 
 ### Kind:
