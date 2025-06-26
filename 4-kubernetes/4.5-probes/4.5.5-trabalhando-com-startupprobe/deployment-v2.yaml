@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goserver
+  labels:
+    app: goserver
+spec:
+  selector:
+    matchLabels:
+      app: goserver
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: goserver
+    spec:
+      containers:
+      - name: goserver
+        image: felipenoguez/hello-go:v8
+        imagePullPolicy: Always
+
+        # com o uso do startup probe, o initialDelaySeconds probe não é mais necessário
+        # pois o startup probe irá garantir que o container esteja pronto antes de iniciar as outras probes
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 1078
+          periodSeconds: 3
+          failureThreshold: 30
+        
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 1078
+          periodSeconds: 3
+          failureThreshold: 1
+          # initialDelaySeconds: 10
+
+        # descomentado liveness probe para testar o readiness probe
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          periodSeconds: 5
+          failureThreshold: 3
+          timeoutSeconds: 1
+          successThreshold: 1
+          # initialDelaySeconds: 15
+
+        envFrom:
+          - configMapRef:
+              name: goserver-env
+          - secretRef:
+              name: goserver-secret
+        
+        volumeMounts:
+          - name: config-volume
+            mountPath: /go/myfamily
+            # The file will be created in the container at the specified path
+            readOnly: true
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: configmap-family
+            items:
+              - key: members
+                path: "family.txt"
