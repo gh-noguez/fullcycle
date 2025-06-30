@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+  clusterIP: None
+  # clusterIP: None cria um serviço headless, que não atribui um IP virtual
+  # e permite que os pods sejam acessados diretamente pelo nome DNS
+  # Exemplo de acesso: mysql-0.mysql-service-headless.default.svc.cluster.local
+  # onde "mysql-0" é o nome do pod, "mysql-service-headless" é o nome do serviço,
+  # "default" é o namespace e "svc.cluster.local" é o domínio padrão do Kubernetes
+  # Isso é útil para StatefulSets, onde cada pod tem um nome único e previsível
+  # e pode ser acessado diretamente por outros pods ou  serviços
+  # Exemplo de acesso: mysql-0.mysql-service-headless.default.svc.cluster.local
+  # ou mysql-0.mysql-service-headless.svc.cluster.local
+  # ou mysql-0.mysql-service-headless.default.svc.cluster.local:3306
+  # ou mysql-0.mysql-service-headless.svc.cluster.local:3306
