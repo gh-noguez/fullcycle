@@ -1,0 +1,3 @@
+# Entendendo Stateless vs Stateful.
+
+- Fonte: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
