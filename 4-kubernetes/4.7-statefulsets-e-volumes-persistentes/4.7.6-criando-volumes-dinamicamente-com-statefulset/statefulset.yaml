@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: mysql-headless
+  # podManagementPolicy: Parallel # Sequential | Parallel = duas opções de gerenciamento de pods
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql
+        imagePullPolicy: Always
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: rootpassword
+        # trechos comentados para referência (sugestão de código Copilot)
+        # ports:
+        # - containerPort: 80
+        #   name: web
+        volumeMounts:
+        - name: mysql-volume
+          mountPath: /var/lib/mysql
+  # replicas: 5
+  # selector:
+  #   matchLabels:
+  #     app: mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-volume
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Mi
