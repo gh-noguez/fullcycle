@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: server
+  namespace: prod
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: server-read
+  namespace: prod
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: server-read-binding
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: server # aqui eu referencio o ServiceAccount criado acima
+  # Se eu quisesse referenciar um User, eu usaria:
+  # kind: User
+  # name: server-user
+  # Se eu quisesse referenciar um Group, eu usaria:
+  # kind: Group
+  # name: server-group
+  namespace: prod
+roleRef:
+  kind: Role
+  name: server-read #aqui eu referencio o Role criado acima
+  # Se eu quisesse referenciar um ClusterRole, eu usaria:
+  # kind: ClusterRole
+  # name: server-read
+  # apiGroup: rbac.authorization.k8s.io
+  # Se eu quisesse referenciar um Role, eu usaria:
+  # kind: Role
+  # name: server-read
+  apiGroup: rbac.authorization.k8s.io

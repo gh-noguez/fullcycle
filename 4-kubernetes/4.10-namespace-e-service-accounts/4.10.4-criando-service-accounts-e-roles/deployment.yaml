@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: prod
+spec:
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      serviceAccount: server # Define o serviceAccount para o Pod, que é o nome do ServiceAccount criado      
+      containers:
+      - name: server
+        image: felipenoguez/hello-go:v6
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 1078
