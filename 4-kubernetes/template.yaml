@@ -1,0 +1,579 @@
+# --- 1. Namespace ---
+# Um Namespace cria um escopo lógico para recursos dentro do cluster,
+# ajudando a organizar e isolar ambientes (ex: dev, prod, qa).
+# Todos os recursos subsequentes (Deployment, Service, etc.) neste arquivo
+# pertencerão a este Namespace, a menos que especificado de outra forma.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-app-prod # Nome do Namespace para nossa aplicação de produção
+
+---
+
+# --- 2. Secret ---
+# Secrets armazenam informações sensíveis (senhas, chaves de API, tokens)
+# de forma segura no Kubernetes.
+# Este Secret será montado como variáveis de ambiente ou arquivos no Pod.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-app-secrets # Nome do Secret
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+type: Opaque
+data:
+  DB_PASSWORD: "c2VuaGFIbnNlbnNpdmE=" # Base64 encoded: "senhaInsensivel" (APENAS PARA EXEMPLO!)
+  JWT_SECRET_KEY: "Y2hhdmVzZWNyZXRhR1dUI211aXRvcy5zZWNyZXRv" # Base64 encoded: "chavesecretaJWT#muito.secreto"
+# Como se comunica: Será referenciado no Deployment para ser injetado nos Pods.
+
+---
+
+# --- 3. ConfigMap ---
+# ConfigMaps armazenam dados de configuração não sensíveis.
+# Podem ser montados como arquivos ou injetados como variáveis de ambiente nos Pods.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-app-config # Nome do ConfigMap
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+data:
+  APP_ENV: "production"
+  DB_HOST: "my-database-svc" # Refere-se ao Service do banco de dados (que será criado abaixo)
+  DB_PORT: "5432"
+# Como se comunica: Será referenciado no Deployment para ser injetado nos Pods.
+
+---
+
+# --- 4. ServiceAccount ---
+# ServiceAccounts fornecem uma identidade para os processos que rodam nos Pods
+# ao interagir com a API do Kubernetes.
+# Pods usam esta ServiceAccount para se autenticar no cluster.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-app-sa # Nome da ServiceAccount
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+# Como se comunica: Será referenciada no Deployment para atribuir uma identidade ao Pod.
+# Será referenciada no RoleBinding para conceder permissões a esta identidade.
+
+---
+
+# --- 5. Role ---
+# Roles definem um conjunto de permissões (o que pode ser feito) dentro de um Namespace específico.
+# Este Role concede permissão para "get" e "list" ConfigMaps e Secrets dentro do Namespace 'my-app-prod'.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-app-reader # Nome do Role
+  namespace: my-app-prod # Escopo deste Role é o Namespace 'my-app-prod'
+rules:
+- apiGroups: [""] # "" significa as APIs core (pods, services, configmaps, secrets)
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"] # Permissões de leitura
+# Como se comunica: Será referenciado por um RoleBinding para ser atribuído a um Subject (ServiceAccount).
+
+---
+
+# --- 6. RoleBinding ---
+# RoleBindings vinculam um Role (o que fazer) a um Subject (quem vai fazer).
+# Este RoleBinding conecta a ServiceAccount 'my-app-sa' ao Role 'my-app-reader'.
+# Isso significa que Pods usando 'my-app-sa' terão as permissões definidas em 'my-app-reader'.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-app-read-config-secrets # Nome do RoleBinding
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod' e vincula um Role nesse Namespace
+subjects:
+- kind: ServiceAccount
+  name: my-app-sa # Refere-se à ServiceAccount 'my-app-sa' criada acima
+  namespace: my-app-prod # A ServiceAccount também está neste Namespace
+roleRef:
+  kind: Role
+  name: my-app-reader # Refere-se ao Role 'my-app-reader' criado acima
+  apiGroup: rbac.authorization.k8s.io
+# Como se comunica: Vincula a ServiceAccount ao Role, concedendo as permissões.
+# O Pod (usando a ServiceAccount) agora terá essas permissões.
+
+---
+
+# --- 7. PersistentVolume (PV) ---
+# Um PV representa um pedaço de armazenamento de cluster que foi provisionado.
+# Geralmente provisionado por um administrador ou dinamicamente por um StorageClass.
+# Este é um exemplo de PV provisionado estaticamente.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-db-pv # Nome do PV
+spec:
+  capacity:
+    storage: 10Gi # Capacidade de armazenamento
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce # Pode ser montado como leitura/escrita por um único nó
+  persistentVolumeReclaimPolicy: Retain # Retém os dados após o PVC ser deletado
+  storageClassName: manual-storage # Nome da StorageClass, pode ser diferente do que o PVC solicita se for provisionamento estático
+  hostPath: # Exemplo simples de hostPath, EVITAR EM PRODUÇÃO! Use volumes de provedores de nuvem (GCEPersistentDisk, AWSElasticBlockStore, etc.)
+    path: "/mnt/data/my-db-data"
+# Como se comunica: É "reivindicado" por um PersistentVolumeClaim.
+
+---
+
+# --- 8. PersistentVolumeClaim (PVC) ---
+# Um PVC é uma requisição de armazenamento feita por um Pod.
+# Ele encontra (ou provoca a criação de) um PV que satisfaça suas necessidades.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-db-pvc # Nome do PVC
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  accessModes:
+    - ReadWriteOnce # Requer acesso de leitura/escrita por um único nó
+  resources:
+    requests:
+      storage: 8Gi # Requisita 8 GiB de armazenamento
+  storageClassName: manual-storage # Requisita um PV de uma StorageClass específica (ou default)
+# Como se comunica: Reivindica um PersistentVolume que corresponda às suas especificações.
+# Será montado no Deployment para que o Pod possa acessar o armazenamento persistente.
+
+---
+
+# --- 9. Deployment (para o Banco de Dados) ---
+# Um Deployment define o estado desejado de um conjunto de Pods e ReplicaSets.
+# Este é o Deployment para o nosso serviço de banco de dados (ex: PostgreSQL).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-database # Nome do Deployment
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  replicas: 1 # Uma réplica para o banco de dados (em um ambiente real, seria mais complexo para HA)
+  selector:
+    matchLabels:
+      app: my-database # Seleciona Pods com este label
+  template:
+    metadata:
+      labels:
+        app: my-database # Label do Pod
+    spec:
+      containers:
+      - name: postgres # Nome do container
+        image: postgres:13 # Imagem do PostgreSQL
+        ports:
+        - containerPort: 5432 # Porta interna do container do DB
+        env:
+        - name: POSTGRES_DB
+          value: "mydb"
+        - name: POSTGRES_USER
+          value: "myuser"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-app-secrets # Referencia o Secret 'my-app-secrets' criado acima
+              key: DB_PASSWORD # Pega o valor da chave 'DB_PASSWORD' dentro do Secret
+        volumeMounts:
+        - name: db-data # Nome do volume montado
+          mountPath: /var/lib/postgresql/data # Caminho dentro do container onde o volume será montado
+      volumes:
+      - name: db-data # Define o volume
+        persistentVolumeClaim:
+          claimName: my-db-pvc # Refere-se ao PersistentVolumeClaim 'my-db-pvc' criado acima
+# Como se comunica: Cria e gerencia Pods que rodam o banco de dados.
+# O Pod usa o Secret para a senha do DB e o PVC para armazenamento persistente.
+# Os Pods criados por este Deployment serão selecionados pelo Service do DB.
+
+---
+
+# --- 10. Service (para o Banco de Dados) ---
+# Um Service define uma forma abstrata de expor um grupo de Pods,
+# fornecendo um IP e porta estáveis.
+# Este Service expõe o banco de dados internamente no cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-database-svc # Nome do Service (pode ser resolvido via DNS interno como 'my-database-svc.my-app-prod.svc.cluster.local')
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  selector:
+    app: my-database # Seleciona Pods com o label 'app: my-database' (do Deployment do DB)
+  type: ClusterIP # Tipo de Service: acessível apenas dentro do cluster
+  ports:
+  - protocol: TCP
+    port: 5432 # Porta do Service
+    targetPort: 5432 # Porta do container para onde o tráfego será direcionado
+# Como se comunica: Fornece um nome DNS e um IP estável para o Deployment do banco de dados.
+# O Deployment da aplicação principal (my-app-server) usará este Service para se conectar ao DB.
+
+---
+
+# --- 11. Deployment (para a Aplicação Principal) ---
+# Este é o Deployment para a nossa aplicação web principal (felipenoguez/hello-go).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-server # Nome do Deployment
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  replicas: 2 # Duas réplicas para alta disponibilidade
+  selector:
+    matchLabels:
+      app: my-app-server # Seleciona Pods com este label
+  template:
+    metadata:
+      labels:
+        app: my-app-server # Label do Pod
+    spec:
+      serviceAccountName: my-app-sa # <-- Referencia a ServiceAccount 'my-app-sa' criada acima
+      containers:
+      - name: app-container # Nome do container
+        image: felipenoguez/hello-go:v6 # Sua imagem da aplicação
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1078 # Porta que sua aplicação Go escuta
+        envFrom: # Injeta ConfigMap e Secret como variáveis de ambiente
+        - configMapRef:
+            name: my-app-config # Refere-se ao ConfigMap 'my-app-config' criado acima
+        - secretRef:
+            name: my-app-secrets # Refere-se ao Secret 'my-app-secrets' criado acima (CUIDADO: injeta TUDO, use 'env' para chaves específicas)
+        readinessProbe: # Verifica se o Pod está pronto para receber tráfego
+          httpGet:
+            path: /healthz
+            port: 1078 # Porta da sua aplicação Go
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe: # Verifica se o Pod está vivo e funcionando
+          httpGet:
+            path: /healthz
+            port: 1078 # Porta da sua aplicação Go
+          initialDelaySeconds: 30 # Mais longo para não reiniciar prematuramente
+          periodSeconds: 10
+      # O startup probe pode ser adicionado aqui se a inicialização for muito longa
+      # startupProbe:
+      #   httpGet:
+      #     path: /healthz
+      #     port: 1078
+      #   failureThreshold: 30 # Tentará 30 vezes (30 * periodSeconds) antes de falhar
+      #   periodSeconds: 10
+# Como se comunica: Cria e gerencia Pods da aplicação.
+# Os Pods usam o ServiceAccount para permissões, ConfigMap e Secret para configuração.
+# As probes monitoram a saúde do container.
+# Os Pods criados serão selecionados pelo Service da aplicação principal.
+
+---
+
+# --- 12. Service (para a Aplicação Principal) ---
+# Este Service expõe a aplicação principal internamente no cluster.
+# Será o alvo do Ingress para roteamento externo.
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service # Nome do Service
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  selector:
+    app: my-app-server # Seleciona Pods com o label 'app: my-app-server' (do Deployment da app)
+  type: ClusterIP # Tipo de Service: acessível apenas dentro do cluster
+  ports:
+  - protocol: TCP
+    port: 80 # Porta do Service (convenção para HTTP)
+    targetPort: 1078 # Porta do container da aplicação Go
+# Como se comunica: Fornece um nome DNS e um IP estável para o Deployment da aplicação.
+# Será referenciado no Ingress como o backend para as requisições.
+
+---
+
+# --- 13. HorizontalPodAutoscaler (HPA) ---
+# O HPA automaticamente escala o número de Pods em um Deployment (ou ReplicaSet, StatefulSet)
+# com base em métricas observadas (ex: uso de CPU).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-app-hpa # Nome do HPA
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app-server # Referencia o Deployment 'my-app-server' para escalar
+  minReplicas: 2 # Número mínimo de réplicas
+  maxReplicas: 5 # Número máximo de réplicas
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70 # Escala quando o uso médio de CPU atingir 70%
+# Como se comunica: Monitora as métricas do Deployment referenciado e ajusta o número de réplicas do Deployment.
+
+---
+
+# --- 14. ClusterIssuer (Cert-Manager) ---
+# (Assumindo Cert-Manager instalado no cluster)
+# Um ClusterIssuer representa uma autoridade de certificação (CA) que pode emitir certificados.
+# Configurado para o cluster inteiro, pode ser usado por Ingresses em qualquer Namespace.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod # Nome do ClusterIssuer
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory # Servidor ACME para LetsEncrypt
+    email: seu-email@exemplo.com # Seu email para notificações do LetsEncrypt
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key # Secret onde a chave privada da conta ACME será armazenada
+    solvers:
+    - http01: # Método de desafio para validação de domínio
+        ingress:
+          class: nginx # O Ingress Controller que será usado para o desafio HTTP-01
+# Como se comunica: Usado por objetos Ingress (via anotações) para solicitar certificados TLS.
+
+---
+
+# --- 15. Ingress ---
+# Um Ingress gerencia o acesso externo aos serviços em um cluster,
+# fornecendo roteamento HTTP/S e terminação SSL/TLS.
+# Este Ingress expõe a aplicação principal para o mundo exterior.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress # Nome do Ingress
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+  annotations:
+    kubernetes.io/ingress.class: nginx # Especifica qual Ingress Controller usar (ex: Nginx)
+    cert-manager.io/cluster-issuer: letsencrypt-prod # <-- Referencia o ClusterIssuer 'letsencrypt-prod' para emitir um certificado
+spec:
+  tls: # Configuração TLS para HTTPS
+  - hosts:
+    - app.meudominio.com # Domínio que será protegido por TLS
+    secretName: my-app-tls # Secret onde o certificado TLS será armazenado pelo Cert-Manager
+  rules:
+  - host: app.meudominio.com # Host (domínio) para esta regra
+    http:
+      paths:
+      - path: / # Caminho para roteamento
+        pathType: Prefix
+        backend:
+          service:
+            name: my-app-service # <-- Referencia o Service 'my-app-service' (da aplicação principal)
+            port:
+              number: 80 # Porta do Service da aplicação
+# Como se comunica: Roteia o tráfego externo para o Service 'my-app-service'.
+# Utiliza o ClusterIssuer para obter um certificado TLS, armazenando-o em 'my-app-tls' Secret.
+# Requer que um Ingress Controller (como Nginx) esteja rodando no cluster.
+
+---
+# --- StatefulSet ---
+# Um StatefulSet é usado para gerenciar aplicações com estado (stateful applications),
+# como bancos de dados, que exigem identidades de rede e armazenamento persistente estáveis e únicas para cada Pod.
+# Diferente do Deployment, ele garante a ordem de inicialização/exclusão dos Pods e seus volumes.
+# Este é um exemplo de um StatefulSet para um banco de dados (ex: MongoDB)
+# onde cada réplica precisa do seu próprio armazenamento persistente e identidade.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-stateful-db # Nome do StatefulSet
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  serviceName: "my-stateful-db-headless" # Referencia um Headless Service (criado abaixo) para identidades estáveis de rede
+  replicas: 3 # Exemplo de 3 réplicas para o DB
+  selector:
+    matchLabels:
+      app: my-stateful-db # Seleciona Pods com este label
+  template:
+    metadata:
+      labels:
+        app: my-stateful-db # Label do Pod
+    spec:
+      containers:
+      - name: mongodb # Nome do container
+        image: mongo:4.4 # Imagem do MongoDB
+        ports:
+        - containerPort: 27017 # Porta padrão do MongoDB
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: "admin"
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-app-secrets # Reutiliza o Secret existente
+              key: DB_PASSWORD # Pega a senha do DB
+        volumeMounts:
+        - name: mongodb-data # Nome do volume que será montado
+          mountPath: /data/db # Caminho onde o MongoDB armazena dados
+  volumeClaimTemplates: # Define modelos para PVCs que serão criados automaticamente para cada Pod
+  - metadata:
+      name: mongodb-data # Nome do PVC que será criado para cada Pod (ex: mongodb-data-my-stateful-db-0)
+    spec:
+      accessModes: [ "ReadWriteOnce" ] # Cada PVC/PV será exclusivo de um Pod
+      storageClassName: standard-ssd # Exemplo: um StorageClass para SSDs padrão (adapte ao seu cluster)
+      resources:
+        requests:
+          storage: 1Gi # Cada Pod terá 1GB de armazenamento persistente próprio
+# Como se comunica:
+# - Gerencia Pods com identidades estáveis e volumes persistentes únicos (via `volumeClaimTemplates`).
+# - Requer um Headless Service (criado abaixo) para DNS estável para cada Pod (ex: my-stateful-db-0.my-stateful-db-headless.my-app-prod.svc.cluster.local).
+
+---
+
+# --- Service (Headless para StatefulSet) ---
+# Um Headless Service não aloca um ClusterIP e não faz balanceamento de carga.
+# Em vez disso, ele retorna os IPs de todos os Pods que ele seleciona, permitindo que eles sejam acessados individualmente.
+# É crucial para StatefulSets, pois cada réplica precisa de um nome DNS e IP únicos.
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-stateful-db-headless # Nome do Headless Service (usado no StatefulSet acima)
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  selector:
+    app: my-stateful-db # Seleciona Pods do StatefulSet 'my-stateful-db'
+  clusterIP: None # <-- Define o Service como Headless
+  ports:
+  - protocol: TCP
+    port: 27017 # Porta do Service
+    targetPort: 27017 # Porta do container do MongoDB
+# Como se comunica:
+# - Permite que os Pods do StatefulSet obtenham identidades de rede únicas e acessíveis por DNS (ex: my-stateful-db-0, my-stateful-db-1, etc.).
+# - Essencial para o funcionamento correto de aplicações stateful distribuídas.
+
+---
+
+# --- DaemonSet ---
+# Um DaemonSet garante que uma cópia de um Pod seja executada em TODOS (ou em um subconjunto selecionado)
+# dos nós elegíveis em um cluster. É ideal para agentes de log, monitoramento ou rede.
+# Este é um exemplo de um DaemonSet para um agente de log (ex: Fluentd/Fluent Bit).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-collector # Nome do DaemonSet
+  namespace: kube-system # Geralmente DaemonSets de infraestrutura vão para 'kube-system' ou 'monitoring'
+spec:
+  selector:
+    matchLabels:
+      app: log-collector # Seleciona Pods com este label
+  template:
+    metadata:
+      labels:
+        app: log-collector # Label do Pod
+    spec:
+      tolerations: # Permite que o Pod rode em nós com taints, como Master/Control Plane
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: fluentd # Nome do container
+        image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-systemd-1.0 # Exemplo de imagem de agente de log
+        env:
+        - name: FLUENTD_SCHEME
+          value: "https"
+        volumeMounts: # Monta o diretório de logs do host no Pod
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      volumes:
+      - name: varlog
+        hostPath: # Acessa o diretório de logs do host
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath: # Acessa os logs dos containers do Docker no host
+          path: /var/lib/docker/containers
+# Como se comunica:
+# - Garante que um agente de log/monitoramento esteja presente em cada nó, coletando logs diretamente do host.
+# - Não se comunica diretamente com outros Kinds via selectores de Service ou Ingress, mas coleta dados para serviços de observabilidade.
+
+---
+
+# --- Job ---
+# Um Job cria um ou mais Pods e garante que um número especificado deles termine com sucesso.
+# Ideal para tarefas de processamento batch ou tarefas únicas.
+# Este é um exemplo de um Job que executa um script de backup.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-backup-job # Nome do Job
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure # Se o Pod falhar, ele será reiniciado até ter sucesso ou esgotar tentativas
+      containers:
+      - name: backup-container # Nome do container do Job
+        image: ubuntu/curl:latest # Imagem com ferramentas básicas
+        command: ["/bin/bash", "-c"]
+        args: # Comando para simular um backup do DB
+        - "echo 'Iniciando backup do banco de dados...'; sleep 10; echo 'Backup concluído!'"
+        env: # Pode usar ConfigMaps e Secrets aqui para credenciais do DB, etc.
+        - name: DB_SERVICE_HOST
+          value: "my-database-svc" # Referencia o Service do DB para acesso interno
+      # serviceAccountName: my-app-sa # Pode usar ServiceAccount se precisar de permissões para interagir com a API K8s
+  backoffLimit: 4 # Número máximo de tentativas de reinício do Pod em caso de falha
+# Como se comunica:
+# - Pode interagir com Services internos (como 'my-database-svc') para realizar suas tarefas.
+# - Não tem um Service associado, pois não é um serviço de longa duração.
+# - Pode ser programado para rodar periodicamente por um CronJob.
+
+---
+
+# --- CronJob ---
+# Um CronJob cria Jobs em um cronograma repetitivo.
+# Ideal para tarefas agendadas, como backups diários, limpeza de dados, etc.
+# Este CronJob executa o Job de backup do DB toda noite à meia-noite.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-db-backup # Nome do CronJob
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  schedule: "0 0 * * *" # Cron schedule: "At 00:00 (midnight) every day"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup-container
+            image: ubuntu/curl:latest
+            command: ["/bin/bash", "-c"]
+            args:
+            - "echo 'Executando backup diário agendado...'; sleep 10; echo 'Backup diário concluído!'"
+            env:
+            - name: DB_SERVICE_HOST
+              value: "my-database-svc" # Referencia o Service do DB
+# Como se comunica:
+# - Agenda a criação de Jobs (como o 'db-backup-job' acima) em intervalos definidos.
+# - Os Jobs criados por ele se comunicam com outros recursos (como Services) conforme necessário para suas tarefas.
+
+---
+
+# --- NetworkPolicy ---
+# NetworkPolicies permitem que você defina regras de firewall para o tráfego de rede entre Pods.
+# Controla quais Pods podem se comunicar com quais outros Pods ou endpoints externos.
+# Este exemplo permite que apenas Pods com o label 'app: my-app-server' se conectem ao banco de dados.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-access-policy # Nome da NetworkPolicy
+  namespace: my-app-prod # Pertence ao Namespace 'my-app-prod'
+spec:
+  podSelector: # Aplica esta política aos Pods com o label 'app: my-database' (o Deployment do DB)
+    matchLabels:
+      app: my-database
+  policyTypes:
+    - Ingress # Esta política se aplica ao tráfego de entrada para o DB
+  ingress: # Regras para tráfego de entrada
+  - from:
+    - podSelector: # Permite tráfego de Pods com o label 'app: my-app-server'
+        matchLabels:
+          app: my-app-server
+    ports:
+    - protocol: TCP
+      port: 5432 # Permite acesso à porta 5432 (porta do DB)
+# Como se comunica:
+# - Restringe o tráfego de rede para Pods baseados em labels e namespaces.
+# - Assegura que apenas Pods específicos (com o label 'app: my-app-server') possam se conectar ao Pod do DB.
+# - Complementa os Services, atuando como uma camada de segurança.
