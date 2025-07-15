@@ -1,4 +1,4 @@
-# Fundamentos da arquitetura de software.
+# O papel do arquiteto de software.
 
 #### O Papel do Arquiteto(a) de Software
 O arquiteto(a) de software é fundamental para transformar requisitos de negócio em padrões arquiteturais, estruturando a solução como um todo.
